@@ -118,6 +118,4 @@ void RPSTournamentManager::printResults() {
     for (int i = 0 ; i < vec_results.size(); i++) {
         cout << vec_results[i].first << " " << vec_results[i].second << endl;
     }
-
-
 }
