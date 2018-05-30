@@ -119,4 +119,5 @@ void RPSTournamentManager::printResults() {
         cout << vec_results[i].first << " " << vec_results[i].second << endl;
     }
 
+
 }
