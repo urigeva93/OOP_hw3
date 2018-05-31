@@ -11,6 +11,7 @@
 #include <thread>
 #include <random>
 #include <queue>
+#include <utility>
 #include "RPSGame.h"
 #include "AlgorithmRegistration.h"
 
@@ -36,16 +37,20 @@ private:
     queue<pair<string, string>> m_games_queue;
     int m_num_players;
     RPSTournamentManager() {} //private ctor
+    bool last_game;
+    pair <string, string> last_special_game;
 
 
-    void fillGamesQueue();
+
+    void runSpecialGame(pair<string, string> game);
     void removeReadyPlayers(vector<pair<string, int>>& queue); //helper function for prepareGames() function
-    void launchTournament();
-    void threadWork();
-    void printResults();
+    void threadWork(bool with_lock);
 
 public:
 
+    void fillGamesQueue();
+    void launchTournament();
+    void printResults();
     static RPSTournamentManager& getTournamentManager();
     void registerAlgorithm(string id, function<unique_ptr<PlayerAlgorithm>()> factoryMethod);
 

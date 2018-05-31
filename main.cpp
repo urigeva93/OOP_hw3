@@ -54,6 +54,14 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    //GO TO DIR AND OPEN IT
+    //IF FAILS, EXIT FAILURE WITH USAGE
 
+    //LOAD THE SO FILES
 
+    RPSTournamentManager::getTournamentManager().fillGamesQueue(); //prepare games
+    RPSTournamentManager::getTournamentManager().launchTournament(); //launch tour'
+    RPSTournamentManager::getTournamentManager().printResults(); //print tour' results
+    return EXIT_SUCCESS;
+    
 }

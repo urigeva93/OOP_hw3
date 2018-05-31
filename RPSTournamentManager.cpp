@@ -31,7 +31,7 @@ void RPSTournamentManager::fillGamesQueue() {
     mt19937 generator(rand_dev());
     int lower = 0, upper, player_1_index, player_2_index;
 
-    while(pool.size() > 1) {
+    while (pool.size() > 1) {
 
         upper = pool.size() - 1;
         uniform_int_distribution<int> distr(lower, upper);
@@ -50,8 +50,11 @@ void RPSTournamentManager::fillGamesQueue() {
     }
 
     //in case one player left match him with the first player
-    if(pool.size() == 1)
-        this->m_games_queue.push(make_pair(pool.at(0).first, this->m_games_queue.front().first));
+    this->last_game = false;
+    if (pool.size() == 1) {
+        this->last_game = true;
+        this->last_special_game = make_pair(pool.at(0).first, this->m_games_queue.front().first);
+    }
 
 }
 
@@ -61,45 +64,74 @@ void RPSTournamentManager::removeReadyPlayers(vector<pair<string, int>>& pool) {
 }
 
 void RPSTournamentManager::launchTournament() {
+    // if the last game is a special one, run it on the main thread
+    if (this->last_game)
+        this->runSpecialGame(this->last_special_game);
 
-    vector<thread> threads_pool;
-    for(int i =0; i < NUM_OF_THREAD; i++)
-        threads_pool.push_back(thread(threadWork));
+    if (NUM_OF_THREADS > 1) {
+        vector<thread> threads_pool;
+        for (int i = 0; i < NUM_OF_THREAD - 1; i++)
+            threads_pool.push_back(thread(threadWork, true));
 
 
-    for(thread& t : threads_pool)
-        t.join();
+        for (thread &t : threads_pool)
+            t.join();
+    } else {
+        // thread work- without lock
+        this->threadWork(false);
+
+    }
 
 }
 
-void RPSTournamentManager::threadWork() {
+void RPSTournamentManager::runSpecialGame(pair<string, string> game) {
+    auto algo_player1 = this->m_id_factory[game.first];
+    auto algo_player2 = this->m_id_factory[game.second];
+
+    unique_ptr<RPSGame> game_manager = make_unique<RPSGame>(algo_player1, algo_player2);
+    game_manager->initGame();
+    game_manager->playGame();
+    game_manager->endGame();
+
+    int winner = game_manager->getWinner();
+    // play the game without giving points to the second player
+    if(winner == PLAYER_1)
+        this->m_id_points[game.first] += WIN_POINTS;
+    else if(winner == TIE)
+        this->m_id_points[game.first] += TIE_POINTS;
+}
+
+void RPSTournamentManager::threadWork(bool with_lock) {
 
 
     int winner;
+    unique_ptr<RPSGame> game_manager;
     while(this->m_games_queue.empty() == false) {
 
         pair<string, string> game;
+        if (with_lock)
         {
-            lock_guard<mutex> lock(queue_lock);
-            game = this->m_games_queue.pop();
+            {
+                lock_guard<mutex> lock(queue_lock);
+                game = this->m_games_queue.pop();
+            }
         }
+        else
+            game = this->m_games_queue.pop();
 
         auto algo_player1 = this->m_id_factory[game.first];
         auto algo_player2 = this->m_id_factory[game.second];
 
-        unique_ptr<RPSGame> game_manager = make_unique<RPSGame>(algo_player1, algo_player2);
+        game_manager = make_unique<RPSGame>(algo_player1, algo_player2);
         game_manager->initGame();
         game_manager->playGame();
         game_manager->endGame();
 
-
-        //TODO: what if game metzik
-
-        //update points according to winner
         winner = game_manager->getWinner();
-        if(winner == PLAYER_1)
+        //update points according to winner
+        if (winner == PLAYER_1)
             this->m_id_points[game.first] += WIN_POINTS;
-        else if(winner == PLAYER_2)
+        else if (winner == PLAYER_2)
             this->m_id_points[game.second] += WIN_POINTS;
         else { //winner == TIE
             this->m_id_points[game.first] += TIE_POINTS;
